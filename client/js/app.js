@@ -1,7 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const apiUrl = 'http://localhost:3000/entries';
+    const apiUrl = 'http://localhost:3000';
 
-    
     const inputField = document.getElementById('todo-input');
     const prioritySelect = document.getElementById('priority-select');
     const submitButton = document.getElementById('submit');
@@ -10,11 +9,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const updateSubmitButton = document.getElementById('update-submit');
     const cancelUpdateButton = document.getElementById('cancel-update');
 
-    
     let currentEntryName = '';
     let isUpdating = false;
 
-   
     const searchInput = document.getElementById('search-input');
     const filterSelect = document.getElementById('filter-select');
 
@@ -29,7 +26,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchEntries() {
         try {
-            const response = await fetch(apiUrl);
+            const response = await fetch(`${apiUrl}/GET_ALL_TODOS`, {
+                method: 'POST',
+            });
             if (response.ok) {
                 const entries = await response.json();
                 displayEntries(entries);
@@ -64,7 +63,6 @@ document.addEventListener('DOMContentLoaded', () => {
             container.appendChild(entryDiv);
         });
 
-        
         document.querySelectorAll('.update-button').forEach(button => {
             button.addEventListener('click', handleUpdateClick);
         });
@@ -78,7 +76,6 @@ document.addEventListener('DOMContentLoaded', () => {
         currentEntryName = name;
         isUpdating = true;
 
-      
         const entry = document.querySelector(`li[data-name="${name}"]`);
         updateInputField.value = name;
         updatePrioritySelect.value = entry.textContent.split(': ')[1].trim();
@@ -95,13 +92,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (newName && newPriority) {
             try {
-                const response = await fetch(`http://localhost:3000/entries/${currentEntryName}`, {
-                    method: 'PUT',
+                const response = await fetch(`${apiUrl}/UPDATE_TODO_BY_ID/${currentEntryName}`, {
+                    method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ newName, newPriority })
                 });
                 if (response.ok) {
-                    fetchEntries(); // Refresh 
+                    fetchEntries(); 
                     cancelUpdate();
                 } else {
                     console.error('Failed to update entry:', response.statusText);
@@ -116,8 +113,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const name = event.target.parentElement.dataset.name;
 
         try {
-            const response = await fetch(`http://localhost:3000/entries/${name}`, {
-                method: 'DELETE'
+            const response = await fetch(`${apiUrl}/DELETE_TODO_BY_ID/${name}`, {
+                method: 'POST'
             });
             if (response.ok) {
                 fetchEntries(); 
@@ -135,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const priority = prioritySelect.value;
 
         try {
-            const response = await fetch(apiUrl, {
+            const response = await fetch(`${apiUrl}/ADD_TODO`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -145,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 fetchEntries();
                 inputField.value = '';
-                // prioritySelect.value = ''; 
+                prioritySelect.value = ''; 
                 checkFormValidity();
             } else {
                 console.error('Failed to add entry:', response.statusText);
@@ -155,8 +152,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    searchInput.addEventListener('input', () => fetchEntries());
-    filterSelect.addEventListener('change', () => fetchEntries());
+    searchInput.addEventListener('input', fetchEntries);
+    filterSelect.addEventListener('change', fetchEntries);
 
     document.getElementById('update-form').addEventListener('submit', handleUpdate);
 
@@ -167,10 +164,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('todo-form').style.display = 'block';
         document.getElementById('update-form-container').style.display = 'none';
         updateInputField.value = '';
-        // updatePrioritySelect.value = '';
+        updatePrioritySelect.value = '';
         checkFormValidity();
     }
 
-   
     fetchEntries();
 });
