@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { readFromExcel, initializeWorkbook, writeToFile } = require('./services/excelManipulation.services');
+const { readFromExcel, initializeWorkbook, writeToFile } = require('./service/excelManipulation.services');
 
 const app = express();
 
