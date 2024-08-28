@@ -5,7 +5,6 @@ const { readFromExcel, initializeWorkbook, writeToFile } = require('./services/e
 
 const app = express();
 
-
 app.use(express.json());
 app.use(cors());
 
@@ -16,6 +15,7 @@ let workbook;
 let worksheet;
 let dataList = [];
 
+// Initialize the workbook and read the initial data
 async function initialize() {
     try {
         const result = await initializeWorkbook();
@@ -28,12 +28,12 @@ async function initialize() {
     }
 }
 
-
+// Serve the index.html file
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'index.html'));
 });
 
-
+// Fetch all TODOs
 app.post('/GET_ALL_TODOS', async (req, res) => {
     console.log('POST /GET_ALL_TODOS endpoint hit');
     try {
@@ -45,6 +45,7 @@ app.post('/GET_ALL_TODOS', async (req, res) => {
     }
 });
 
+// Add a new TODO
 app.post('/ADD_TODO', async (req, res) => {
     console.log('POST /ADD_TODO endpoint hit with body:', req.body);
     const { name, priority } = req.body;
@@ -53,9 +54,11 @@ app.post('/ADD_TODO', async (req, res) => {
         return res.status(400).json({ message: 'Please provide both name and priority.' });
     }
 
-    const newEntry = { name, priority };
+    // Determine the new ID based on the highest existing ID
+    const newId = dataList.length > 0 ? Math.max(...dataList.map(e => e.id)) + 1 : 1;
+    const newEntry = { id: newId, name, priority };
     dataList.push(newEntry);
-    worksheet.addRow([name, priority]);
+    worksheet.addRow([newId, name, priority]);
 
     try {
         await writeToFile(workbook);
@@ -65,10 +68,8 @@ app.post('/ADD_TODO', async (req, res) => {
         res.status(500).json({ message: 'Error saving the entry.', error });
     }
 });
-
-// Update an existing todo by name
-app.post('/UPDATE_TODO_BY_ID/:name', async (req, res) => {
-    const { name } = req.params;
+app.post('/UPDATE_TODO_BY_ID/:id', async (req, res) => {
+    const { id } = req.params; // Extract ID from URL parameters
     const { newName, newPriority } = req.body;
 
     if (!newName || newPriority === undefined) {
@@ -76,18 +77,18 @@ app.post('/UPDATE_TODO_BY_ID/:name', async (req, res) => {
     }
 
     try {
-        const entryIndex = dataList.findIndex(e => e.name === name);
+        const entryIndex = dataList.findIndex(e => e.id === parseInt(id));
         if (entryIndex === -1) {
             return res.status(404).json({ message: 'Entry not found in dataList.' });
         }
 
-        dataList[entryIndex] = { name: newName, priority: newPriority };
+        dataList[entryIndex] = { id: parseInt(id), name: newName, priority: newPriority };
 
         let entryUpdated = false;
         worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-            if (row.getCell(1).value === name) {
-                row.getCell(1).value = newName;
-                row.getCell(2).value = newPriority;
+            if (row.getCell(1).value === parseInt(id)) {
+                row.getCell(2).value = newName;
+                row.getCell(3).value = newPriority;
                 entryUpdated = true;
             }
         });
@@ -98,19 +99,18 @@ app.post('/UPDATE_TODO_BY_ID/:name', async (req, res) => {
 
         await writeToFile(workbook);
 
-        res.status(200).json({ name: newName, priority: newPriority });
+        res.status(200).json({ id: parseInt(id), name: newName, priority: newPriority });
     } catch (error) {
         console.error('Error updating the entry:', error);
         res.status(500).json({ message: 'Error updating the entry.', error });
     }
 });
 
-// Delete an entry by name
-app.post('/DELETE_TODO_BY_ID/:name', async (req, res) => {
-    const { name } = req.params;
+// Delete an entry by ID
+app.post('/DELETE_TODO_BY_ID/:id', async (req, res) => {
+    const { id } = req.params; // Extract ID from URL parameters
 
-    
-    const entryIndex = dataList.findIndex(e => e.name === name);
+    const entryIndex = dataList.findIndex(e => e.id === parseInt(id));
     if (entryIndex === -1) {
         return res.status(404).json({ message: 'Entry not found in dataList.' });
     }
@@ -119,7 +119,7 @@ app.post('/DELETE_TODO_BY_ID/:name', async (req, res) => {
     try {
         const rowsToDelete = [];
         worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-            if (row.getCell(1).value === name) {
+            if (row.getCell(1).value === parseInt(id)) {
                 rowsToDelete.push(rowNumber);
             }
         });
@@ -140,10 +140,11 @@ app.post('/DELETE_TODO_BY_ID/:name', async (req, res) => {
     }
 });
 
-const PORT  = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
+const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 
 initialize().then(() => {
-    app.listen( PORT, () => {
-        console.log(`Server is running on http://localhost:${PORT}`);
+    app.listen(PORT, () => {
+        console.log(`Server is running on ${BASE_URL}`);
     });
 });
